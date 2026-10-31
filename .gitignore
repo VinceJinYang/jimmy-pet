@@ -1,0 +1,5 @@
+.cache/
+JimmyPet
+JimmyPet.app/
+.DS_Store
+*.dSYM/
