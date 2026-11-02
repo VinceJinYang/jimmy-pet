@@ -1,10 +1,26 @@
-# Jimmy McGill 桌宠
+# Jimmy McGill Desktop Pet
+
+A macOS desktop pet of **Jimmy McGill** from *Better Call Saul*.
+
+Pixel art, always on top of every window, 50 one-liners, three poses. Native Swift — no Electron, no dependencies, ~120 KB.
+
+![screenshot](assets/screenshot.png)
+
+```
+点一下   → 换姿势 + 弹一句台词
+按住拖   → 移动，拖到屏幕边会吸住
+菜单栏   → 花体的 Jimmy McGill，点开就是开关
+```
+
+中文说明见下。
+
+---
+
+## 吉米·麦吉尔桌宠
 
 一个 macOS 桌面宠物：像素风的吉米·麦吉尔（《风骚律师》），浮在所有窗口之上，跟着你干活。
 
 原生 Swift 写的，不是 Electron，不占内存，开机自启，菜单栏一个花体的 *Jimmy McGill* 就是它的开关。
-
-![三种姿势](assets/pose_idle.png)
 
 ## 功能
 
@@ -22,7 +38,7 @@
 需要 macOS 13+ 和 Xcode Command Line Tools（`xcode-select --install`）。
 
 ```bash
-git clone <本仓库地址>
+git clone git@github.com:VinceJinYang/jimmy-pet.git
 cd jimmy-pet
 ./scripts/install.sh
 ```
@@ -67,6 +83,7 @@ desktop/main.swift     全部逻辑（约 300 行 Swift）
 desktop/Info.plist     app 配置，LSUIElement 隐藏 Dock 图标
 scripts/build.sh       编译 + 打包 .app + ad-hoc 签名
 scripts/install.sh     装到 ~/Applications + 配 LaunchAgent
+scripts/uninstall.sh   卸载干净
 ```
 
 直接跑 `./scripts/build.sh` 后，`open JimmyPet.app` 就能看效果。
