@@ -2,36 +2,23 @@ import Cocoa
 
 let POSE_NAMES = ["pose_idle", "pose_pen", "pose_shush"]
 
-var QUOTES: [String] = [
-    "有事打给我。", "这活儿我接。", "听着，这事儿咱们能聊。", "你脸色不对，是遇上事了。", "S'all good, man.",
-    "别慌。慌了就输一半。", "先坐，喝点什么。", "我不问你有没有理，我先问你有没有钱。",
-    "法律这东西，跟修水管一样，你得知道哪根是通的。", "你别把我想成鲨鱼。我就是池塘里那条小鱼。",
-    "我不是好人，但我是站在你这边的坏人。", "你签字那天晚上三点还睁着眼，这就叫风险。", "我认识人。",
-    "这事儿我不能保证赢，但我能保证没人比我要价低。", "你先别说话，让我把话说完。",
-    "我知道我上回搞砸了。我知道。你先听我说。", "你以为我愿意干这个？", "换你你怎么办？",
-    "钱的事好说。难的是你开不了口。", "我这人吧，底线是有的，就是弹性大了点。", "你信我一次。就一次。",
-    "我不管你以前干过什么，我只管你以后想干什么。", "他们跟你讲规矩，我跟你讲办法。",
-    "你想听真话还是想听好听的？我两种都会说。", "别跟我谈道德，跟我谈条款。",
-    "我这辈子最擅长的，就是把不可能变成「再等等」。", "你要是没罪，我让你更没罪。你要是有罪，那咱们聊聊。",
-    "你请我，不是因为我便宜。是因为我敢。", "我说话不算数的时候，我会提前告诉你。",
-    "你看我像骗子吗？别回答，这问题不好答。", "我哥说我是拿机关枪的猩猩。他不懂，猩猩也分会不会用枪。",
-    "我不装体面。体面太贵。", "你给我十分钟，我给你一个说法。",
-    "这事儿要是成了，你别忘了是谁给你指的这条路。", "我从不撒谎——我只是把真话说得比较有想象力。",
-    "别怕。最坏的结果也就是最坏的结果。", "你要的是赢，不是对。这两样很少一块儿来。",
-    "我这种人，最值钱的就是脸皮。", "谈钱伤感情？不谈钱才伤感情。", "你先别签。让我看一眼。就一眼。",
-    "我不保证结果。我保证过程里我一直在这儿。", "你信规矩，我信人。人比规矩好说话。",
-    "我这人记性不好，但记仇记得清楚。", "你现在这个表情，我见过。上一个这么看我的，后来请我吃了饭。",
-    "别把我当律师。把我当个知道门在哪的人。", "咱们不争对错，咱们争时间。",
-    "你要真准备好了，就不会来找我。", "我这辈子就学会一件事：怎么在没路的地方踩出一条。",
-    "行了，别哭。哭完咱们还得办事。", "有事打给我。没事也可以打，我接。"
-]
+struct QuoteBook: Decodable {
+    let click: [String]
+    let idle: [String]
+    let sit: [String]
+}
+
+var CLICK: [String] = ["有事打给我。"]
+var IDLE: [String] = ["我在。"]
+var SIT: [String] = ["起来走两步。"]
 
 func loadQuotes() {
     guard let path = Bundle.main.path(forResource: "quotes", ofType: "json"),
           let data = FileManager.default.contents(atPath: path),
-          let arr = try? JSONDecoder().decode([String].self, from: data),
-          !arr.isEmpty else { return }
-    QUOTES = arr
+          let book = try? JSONDecoder().decode(QuoteBook.self, from: data) else { return }
+    if !book.click.isEmpty { CLICK = book.click }
+    if !book.idle.isEmpty { IDLE = book.idle }
+    if !book.sit.isEmpty { SIT = book.sit }
 }
 
 final class BubbleWindow: NSWindow {
@@ -63,16 +50,25 @@ final class BubbleWindow: NSWindow {
         alphaValue = 0
     }
 
-    func present(_ text: String, above anchor: NSRect) {
+    func present(_ text: String, above anchor: NSRect, on screen: NSScreen?) {
         textLabel.stringValue = text
         textLabel.sizeToFit()
         let padX: CGFloat = 12, padY: CGFloat = 7
         let w = textLabel.frame.width + padX * 2
         let h = textLabel.frame.height + padY * 2
-        textLabel.frame = NSRect(x: padX, y: padY, width: textLabel.frame.width, height: textLabel.frame.height)
+        textLabel.frame = NSRect(x: padX, y: padY,
+                                 width: textLabel.frame.width,
+                                 height: textLabel.frame.height)
 
-        let x = anchor.midX - w / 2
-        let y = anchor.maxY + 8
+        var x = anchor.midX - w / 2
+        var y = anchor.maxY + 8
+
+        if let vf = (screen ?? NSScreen.main)?.visibleFrame {
+            if y + h > vf.maxY { y = anchor.minY - h - 8 }
+            x = min(max(x, vf.minX + 6), vf.maxX - w - 6)
+            y = min(max(y, vf.minY + 6), vf.maxY - h - 6)
+        }
+
         setFrame(NSRect(x: x, y: y, width: w, height: h), display: true)
         box.frame = NSRect(x: 0, y: 0, width: w, height: h)
 
@@ -132,6 +128,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var images: [NSImage] = []
     var talkOn = true
     var hideTimer: Timer?
+    var sitTimer: Timer?
+    var idleTimer: Timer?
 
     let defaults = UserDefaults.standard
 
@@ -140,6 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         loadQuotes()
         buildWindow()
         buildMenuBar()
+        startTimers()
     }
 
     func loadImages() {
@@ -201,8 +200,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
         }
-        guard let screen = NSScreen.main else { return }
-        let vf = screen.visibleFrame
+        let screen = window.screen ?? NSScreen.main
+        guard let vf = screen?.visibleFrame else { return }
         window.setFrameOrigin(NSPoint(x: vf.maxX - size.width - 28, y: vf.minY + 28))
     }
 
@@ -212,8 +211,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func snapToEdge() {
-        guard let screen = NSScreen.main else { return }
-        let vf = screen.visibleFrame
+        let screen = window.screen ?? NSScreen.main
+        guard let vf = screen?.visibleFrame else { return }
         var f = window.frame
         let threshold: CGFloat = 28
 
@@ -245,16 +244,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func tap() {
         poseIndex = (poseIndex + 1) % images.count
         imageView.image = images[poseIndex]
-        speak()
+        say(CLICK)
     }
 
-    func speak() {
+    func say(_ lines: [String]) {
         guard talkOn else { return }
-        let line = QUOTES.randomElement() ?? "有事打给我。"
-        bubble.present(line, above: window.frame)
+        let line = lines.randomElement() ?? "有事打给我。"
+        bubble.present(line, above: window.frame, on: window.screen)
         hideTimer?.invalidate()
         hideTimer = Timer.scheduledTimer(withTimeInterval: 2.8, repeats: false) { [weak self] _ in
             self?.bubble.dismiss()
+        }
+    }
+
+    func startTimers() {
+        sitTimer = Timer.scheduledTimer(withTimeInterval: 45 * 60, repeats: true) { [weak self] _ in
+            guard let self, self.window.isVisible else { return }
+            self.say(SIT)
+        }
+        idleTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
+            guard let self, self.talkOn, self.window.isVisible else { return }
+            if Double.random(in: 0...1) < 0.18 { self.say(IDLE) }
         }
     }
 
@@ -294,6 +304,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
+        let about = NSMenuItem(title: "关于 Jimmy McGill", action: #selector(showAbout), keyEquivalent: "")
+        about.target = self
+        menu.addItem(about)
+
         let quit = NSMenuItem(title: "退出", action: #selector(quitApp), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
@@ -324,6 +338,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func grow() { resize(petHeight + 40) }
     @objc func shrink() { resize(petHeight - 40) }
+
+    @objc func showAbout() {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let alert = NSAlert()
+        alert.messageText = "Jimmy McGill v\(v)"
+        alert.informativeText = """
+        从《风骚律师》来的像素桌宠。
+
+        点一下：换姿势 + 说一句
+        按住拖：移动，靠近屏幕边缘会吸住
+        每 45 分钟提醒你起身
+
+        台词共 \(CLICK.count + IDLE.count + SIT.count) 条。
+        """
+        alert.runModal()
+    }
+
     @objc func quitApp() { savePosition(); NSApp.terminate(nil) }
 }
 
