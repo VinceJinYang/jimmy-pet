@@ -143,12 +143,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var sitTimer: Timer?
     var idleTimer: Timer?
     var fontIndex = 0
+    var menuTitle = "Jimmy McGill"
 
     let defaults = UserDefaults.standard
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         loadImages()
         loadQuotes()
+        if let saved = defaults.string(forKey: "menuTitle"), !saved.isEmpty {
+            menuTitle = saved
+        }
         let savedFont = defaults.string(forKey: "menuFontKey") ?? "Snell Roundhand"
         if let idx = FONT_CHOICES.firstIndex(where: { $0.0.lowercased() == savedFont.lowercased() || $0.1.lowercased() == savedFont.lowercased() }) {
             fontIndex = idx
@@ -293,7 +297,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let choice = FONT_CHOICES[fontIndex]
         let size: CGFloat = choice.0.isEmpty ? 13 : 15
         let font = NSFont(name: choice.0, size: size) ?? NSFont.systemFont(ofSize: 13)
-        let attr = NSAttributedString(string: "Jimmy McGill", attributes: [
+        let attr = NSAttributedString(string: menuTitle, attributes: [
             .font: font,
             .foregroundColor: NSColor.labelColor
         ])
@@ -320,6 +324,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let fontItem = NSMenuItem(title: "换字体", action: #selector(cycleFont), keyEquivalent: "f")
         fontItem.target = self
         menu.addItem(fontItem)
+
+        let titleItem = NSMenuItem(title: "改名字…", action: #selector(editTitle), keyEquivalent: "n")
+        titleItem.target = self
+        menu.addItem(titleItem)
 
         let talk = NSMenuItem(title: "说话：开", action: #selector(toggleTalk), keyEquivalent: "t")
         talk.target = self
@@ -357,6 +365,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             window.orderFrontRegardless()
             statusItem.menu?.item(at: 0)?.title = "隐藏吉米"
+        }
+    }
+
+    @objc func editTitle() {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "菜单栏显示什么"
+        alert.informativeText = "随便写。留空就恢复成 Jimmy McGill。"
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.stringValue = menuTitle
+        field.placeholderString = "Jimmy McGill"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "好")
+        alert.addButton(withTitle: "取消")
+        if alert.runModal() == .alertFirstButtonReturn {
+            let v = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            menuTitle = v.isEmpty ? "Jimmy McGill" : v
+            defaults.set(menuTitle, forKey: "menuTitle")
+            applyMenuFont()
         }
     }
 
