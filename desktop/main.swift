@@ -6,11 +6,13 @@ struct QuoteBook: Decodable {
     let click: [String]
     let idle: [String]
     let sit: [String]
+    let sales: [String]?
 }
 
 var CLICK: [String] = ["有事打给我。"]
 var IDLE: [String] = ["我在。"]
 var SIT: [String] = ["起来走两步。"]
+var SALES: [String] = []
 
 func loadQuotes() {
     guard let path = Bundle.main.path(forResource: "quotes", ofType: "json"),
@@ -19,6 +21,7 @@ func loadQuotes() {
     if !book.click.isEmpty { CLICK = book.click }
     if !book.idle.isEmpty { IDLE = book.idle }
     if !book.sit.isEmpty { SIT = book.sit }
+    if let sales = book.sales, !sales.isEmpty { SALES = sales }
 }
 
 final class BubbleWindow: NSWindow {
@@ -244,7 +247,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func tap() {
         poseIndex = (poseIndex + 1) % images.count
         imageView.image = images[poseIndex]
-        say(CLICK)
+        if !SALES.isEmpty && Bool.random() {
+            say(SALES)
+        } else {
+            say(CLICK)
+        }
     }
 
     func say(_ lines: [String]) {
@@ -350,7 +357,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         按住拖：移动，靠近屏幕边缘会吸住
         每 45 分钟提醒你起身
 
-        台词共 \(CLICK.count + IDLE.count + SIT.count) 条。
+        台词共 \(CLICK.count + IDLE.count + SIT.count + SALES.count) 条。
         """
         alert.runModal()
     }
