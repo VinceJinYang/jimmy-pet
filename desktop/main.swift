@@ -2,6 +2,15 @@ import Cocoa
 
 let POSE_NAMES = ["pose_idle", "pose_pen", "pose_shush"]
 
+// (系统字体名, 菜单里显示的名字)。空字符串表示用系统默认字体。
+let FONT_CHOICES: [(String, String)] = [
+    ("Snell Roundhand", "花体"),
+    ("Zapfino", "更花"),
+    ("Futura", "现代"),
+    ("Courier New", "等宽"),
+    ("", "系统"),
+]
+
 struct QuoteBook: Decodable {
     let click: [String]
     let idle: [String]
@@ -133,12 +142,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var hideTimer: Timer?
     var sitTimer: Timer?
     var idleTimer: Timer?
+    var fontIndex = 0
 
     let defaults = UserDefaults.standard
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         loadImages()
         loadQuotes()
+        let savedFont = defaults.string(forKey: "menuFontKey") ?? "Snell Roundhand"
+        if let idx = FONT_CHOICES.firstIndex(where: { $0.0.lowercased() == savedFont.lowercased() || $0.1.lowercased() == savedFont.lowercased() }) {
+            fontIndex = idx
+        }
         buildWindow()
         buildMenuBar()
         startTimers()
@@ -275,15 +289,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func buildMenuBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-
-        let font = NSFont(name: "Snell Roundhand", size: 15) ?? NSFont.systemFont(ofSize: 14)
+    func applyMenuFont() {
+        let choice = FONT_CHOICES[fontIndex]
+        let size: CGFloat = choice.0.isEmpty ? 13 : 15
+        let font = NSFont(name: choice.0, size: size) ?? NSFont.systemFont(ofSize: 13)
         let attr = NSAttributedString(string: "Jimmy McGill", attributes: [
             .font: font,
             .foregroundColor: NSColor.labelColor
         ])
         statusItem.button?.attributedTitle = attr
+        defaults.set(choice.0, forKey: "menuFontKey")
+        if let item = statusItem.menu?.item(at: 2) {
+            item.title = "换字体：" + choice.1
+        }
+    }
+
+    func buildMenuBar() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         let menu = NSMenu()
 
@@ -294,6 +316,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let pose = NSMenuItem(title: "换姿势", action: #selector(changePose), keyEquivalent: "p")
         pose.target = self
         menu.addItem(pose)
+
+        let fontItem = NSMenuItem(title: "换字体", action: #selector(cycleFont), keyEquivalent: "f")
+        fontItem.target = self
+        menu.addItem(fontItem)
 
         let talk = NSMenuItem(title: "说话：开", action: #selector(toggleTalk), keyEquivalent: "t")
         talk.target = self
@@ -320,6 +346,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(quit)
 
         statusItem.menu = menu
+        applyMenuFont()
     }
 
     @objc func togglePet() {
@@ -333,9 +360,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc func cycleFont() {
+        fontIndex = (fontIndex + 1) % FONT_CHOICES.count
+        applyMenuFont()
+    }
+
     @objc func toggleTalk() {
         talkOn = !talkOn
-        statusItem.menu?.item(at: 2)?.title = talkOn ? "说话：开" : "说话：关"
+        statusItem.menu?.item(withTitle: talkOn ? "说话：关" : "说话：开")?.title = talkOn ? "说话：关" : "说话：开"
     }
 
     @objc func changePose() {
